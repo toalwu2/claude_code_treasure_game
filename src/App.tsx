@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Button } from './components/ui/button';
-import closedChest from 'figma:asset/treasure_closed.png';
-import treasureChest from 'figma:asset/treasure_opened.png';
-import skeletonChest from 'figma:asset/treasure_opened_skeleton.png';
+import closedChest from './assets/treasure_closed.png';
+import treasureChest from './assets/treasure_opened.png';
+import skeletonChest from './assets/treasure_opened_skeleton.png';
+import chestOpenSound from './audios/chest_open.mp3';
+import evilLaughSound from './audios/chest_open_with_evil_laugh.mp3';
+import keyCursor from './assets/key.png';
 
 interface Box {
   id: number;
@@ -43,6 +46,7 @@ export default function App() {
         if (box.id === boxId && !box.isOpen) {
           const newScore = box.hasTreasure ? score + 100 : score - 50;
           setScore(newScore);
+          new Audio(box.hasTreasure ? chestOpenSound : evilLaughSound).play();
           return { ...box, isOpen: true };
         }
         return box;
@@ -75,20 +79,34 @@ export default function App() {
         </p>
       </div>
 
-      <div className="mb-8">
+      <div className="mb-8 flex items-center gap-4">
         <div className="text-2xl text-center p-4 bg-amber-200/80 backdrop-blur-sm rounded-lg shadow-lg border-2 border-amber-400">
           <span className="text-amber-900">Current Score: </span>
           <span className={`${score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             ${score}
           </span>
         </div>
+        {gameEnded && (
+          <span
+            className={`text-lg ${
+              score > 0
+                ? 'text-green-600'
+                : score < 0
+                ? 'text-red-600'
+                : 'text-amber-700'
+            }`}
+          >
+            {score > 0 ? 'Win' : score < 0 ? 'Loss' : 'Tie'}
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             {boxes.map((box) => (
               <motion.div
                 key={box.id}
-                className="flex flex-col items-center cursor-pointer"
+                className="flex flex-col items-center"
+                style={{ cursor: box.isOpen ? 'default' : `url(${keyCursor}), auto` }}
                 whileHover={{ scale: box.isOpen ? 1 : 1.05 }}
                 whileTap={{ scale: box.isOpen ? 1 : 0.95 }}
                 onClick={() => openBox(box.id)}
