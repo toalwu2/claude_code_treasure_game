@@ -1,6 +1,7 @@
 const express = require('express');
-const db = require('../db');
+const { sql } = require('../db');
 const { hashPassword, verifyPassword } = require('../crypto');
+const asyncHandler = require('../asyncHandler');
 const {
   createSession,
   destroySession,
@@ -11,58 +12,70 @@ const {
 
 const router = express.Router();
 
-router.post('/signup', (req, res) => {
-  const { username, password } = req.body || {};
-  if (typeof username !== 'string' || typeof password !== 'string') {
-    return res.status(400).json({ error: 'Username and password are required.' });
-  }
+router.post(
+  '/signup',
+  asyncHandler(async (req, res) => {
+    const { username, password } = req.body || {};
+    if (typeof username !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Username and password are required.' });
+    }
 
-  const trimmedUsername = username.trim();
-  if (trimmedUsername.length < 3) {
-    return res.status(400).json({ error: 'Username must be at least 3 characters.' });
-  }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-  }
+    const trimmedUsername = username.trim();
+    if (trimmedUsername.length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
 
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(trimmedUsername);
-  if (existing) {
-    return res.status(409).json({ error: 'That username is already taken.' });
-  }
+    const { rows: existing } = await sql`SELECT id FROM users WHERE username = ${trimmedUsername}`;
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'That username is already taken.' });
+    }
 
-  const { salt, hash } = hashPassword(password);
-  const result = db
-    .prepare('INSERT INTO users (username, password_hash, password_salt) VALUES (?, ?, ?)')
-    .run(trimmedUsername, hash, salt);
+    const { salt, hash } = hashPassword(password);
+    const { rows } = await sql`
+      INSERT INTO users (username, password_hash, password_salt)
+      VALUES (${trimmedUsername}, ${hash}, ${salt})
+      RETURNING id
+    `;
 
-  const userId = Number(result.lastInsertRowid);
-  const { token, expiresAt } = createSession(userId);
-  setSessionCookie(res, token, expiresAt);
-  res.status(201).json({ user: { id: userId, username: trimmedUsername } });
-});
+    const userId = rows[0].id;
+    const { token, expiresAt } = await createSession(userId);
+    setSessionCookie(res, token, expiresAt);
+    res.status(201).json({ user: { id: userId, username: trimmedUsername } });
+  }),
+);
 
-router.post('/signin', (req, res) => {
-  const { username, password } = req.body || {};
-  if (typeof username !== 'string' || typeof password !== 'string') {
-    return res.status(400).json({ error: 'Username and password are required.' });
-  }
+router.post(
+  '/signin',
+  asyncHandler(async (req, res) => {
+    const { username, password } = req.body || {};
+    if (typeof username !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Username and password are required.' });
+    }
 
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim());
-  if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
-    return res.status(401).json({ error: 'Invalid username or password.' });
-  }
+    const { rows } = await sql`SELECT * FROM users WHERE username = ${username.trim()}`;
+    const user = rows[0];
+    if (!user || !verifyPassword(password, user.password_salt, user.password_hash)) {
+      return res.status(401).json({ error: 'Invalid username or password.' });
+    }
 
-  const { token, expiresAt } = createSession(user.id);
-  setSessionCookie(res, token, expiresAt);
-  res.json({ user: { id: user.id, username: user.username } });
-});
+    const { token, expiresAt } = await createSession(user.id);
+    setSessionCookie(res, token, expiresAt);
+    res.json({ user: { id: user.id, username: user.username } });
+  }),
+);
 
-router.post('/signout', (req, res) => {
-  const token = req.cookies && req.cookies[COOKIE_NAME];
-  if (token) destroySession(token);
-  clearSessionCookie(res);
-  res.status(204).end();
-});
+router.post(
+  '/signout',
+  asyncHandler(async (req, res) => {
+    const token = req.cookies && req.cookies[COOKIE_NAME];
+    if (token) await destroySession(token);
+    clearSessionCookie(res);
+    res.status(204).end();
+  }),
+);
 
 router.get('/me', (req, res) => {
   if (!req.user) {

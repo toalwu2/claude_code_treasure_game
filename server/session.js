@@ -1,28 +1,29 @@
-const db = require('./db');
+const { sql } = require('./db');
 const { createToken } = require('./crypto');
+const asyncHandler = require('./asyncHandler');
 
 const COOKIE_NAME = 'session_token';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-function createSession(userId) {
+async function createSession(userId) {
   const token = createToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-  db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(
-    token,
-    userId,
-    expiresAt.toISOString(),
-  );
+  await sql`
+    INSERT INTO sessions (token, user_id, expires_at)
+    VALUES (${token}, ${userId}, ${expiresAt.toISOString()})
+  `;
   return { token, expiresAt };
 }
 
-function destroySession(token) {
-  db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+async function destroySession(token) {
+  await sql`DELETE FROM sessions WHERE token = ${token}`;
 }
 
 function setSessionCookie(res, token, expiresAt) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
     expires: expiresAt,
     path: '/',
   });
@@ -33,30 +34,28 @@ function clearSessionCookie(res) {
 }
 
 // Looks up the session cookie (if any) and attaches req.user; never blocks the request.
-function attachUser(req, res, next) {
+const attachUser = asyncHandler(async (req, res, next) => {
   const token = req.cookies && req.cookies[COOKIE_NAME];
   if (!token) return next();
 
-  const row = db
-    .prepare(
-      `SELECT users.id AS id, users.username AS username, sessions.expires_at AS expires_at
-       FROM sessions
-       JOIN users ON users.id = sessions.user_id
-       WHERE sessions.token = ?`,
-    )
-    .get(token);
-
+  const { rows } = await sql`
+    SELECT users.id AS id, users.username AS username, sessions.expires_at AS expires_at
+    FROM sessions
+    JOIN users ON users.id = sessions.user_id
+    WHERE sessions.token = ${token}
+  `;
+  const row = rows[0];
   if (!row) return next();
 
   if (new Date(row.expires_at).getTime() <= Date.now()) {
-    destroySession(token);
+    await destroySession(token);
     return next();
   }
 
   req.user = { id: row.id, username: row.username };
   req.sessionToken = token;
   next();
-}
+});
 
 function requireAuth(req, res, next) {
   if (!req.user) {

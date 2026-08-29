@@ -40,8 +40,8 @@ build/Release
 # Vite production build output
 /build
 
-# Local SQLite database (dev/runtime data)
-server/data/
+# Vercel CLI project link/cache (created by `vercel link`)
+.vercel
 
 # Dependency directories
 node_modules/
@@ -143,3 +143,4 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+.env*
