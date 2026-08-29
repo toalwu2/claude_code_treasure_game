@@ -1,6 +1,6 @@
 Deploy this project (Vite frontend + Express API as a Vercel serverless function, backed by Vercel Postgres) to Vercel, and report the live URL.
 
-Architecture reminder: `api/[...path].js` exports the Express app from `server/app.js` as a single catch-all serverless function; `vercel.json` sets the build command/output dir; the database is Vercel Postgres via `@vercel/postgres`, which only speaks Neon's proxy protocol — it does **not** work against an arbitrary local Postgres. Local dev/testing against the real database requires `.env.local` (see step 4).
+Architecture reminder: `api/index.js` exports the Express app from `server/app.js` as a single serverless function; `vercel.json` rewrites every `/api/(.*)` request to `/api` so nested paths like `/api/auth/me` reach it too (Vercel's `[...path]` file-system catch-all only matched single-segment `/api/*` paths in testing — confirmed via the `x-vercel-error: NOT_FOUND` platform header on 404s for nested paths — so don't revert to that convention without re-verifying nested routes). The database is Vercel Postgres via `@vercel/postgres`, which only speaks Neon's proxy protocol — it does **not** work against an arbitrary local Postgres. Local dev/testing against the real database requires `.env.local` (see step 4).
 
 Run these steps in order, stopping to ask the user (not guessing or working around it yourself) whenever a step needs something only they can do:
 
