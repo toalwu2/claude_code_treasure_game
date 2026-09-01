@@ -82,7 +82,7 @@ export function TreasureGame() {
     setBoxes(prevBoxes => {
       const updatedBoxes = prevBoxes.map(box => {
         if (box.id === boxId && !box.isOpen) {
-          const newScore = box.hasTreasure ? score + 150 : score - 50;
+          const newScore = box.hasTreasure ? score + 200 : score - 50;
           setScore(newScore);
           new Audio(box.hasTreasure ? chestOpenSound : evilLaughSound).play();
           return { ...box, isOpen: true };
@@ -133,7 +133,7 @@ export function TreasureGame() {
           Click on the treasure chests to discover what's inside!
         </p>
         <p className="text-amber-700 text-sm">
-          💰 Treasure: +$150 | 💀 Skeleton: -$50
+          💰 Treasure: +$200 | 💀 Skeleton: -$50
         </p>
       </div>
 
@@ -237,7 +237,7 @@ export function TreasureGame() {
                           : 'bg-red-100 text-red-800 border border-red-300'
                       }`}
                     >
-                      {box.hasTreasure ? '+$150' : '-$50'}
+                      {box.hasTreasure ? '+$200' : '-$50'}
                     </motion.div>
                   ) : (
                     <div className="text-amber-700 p-2">
