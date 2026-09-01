@@ -20,10 +20,15 @@ async function destroySession(token) {
 }
 
 function setSessionCookie(res, token, expiresAt) {
+  const isProduction = process.env.NODE_ENV === 'production';
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    // 'None' is required for the cookie to be sent on cross-site requests
+    // (e.g. a GitHub Pages-hosted frontend calling this API on Vercel); it
+    // requires 'secure', which is only true in production, so dev keeps
+    // 'lax' (same-origin via the Vite proxy anyway).
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
     expires: expiresAt,
     path: '/',
   });

@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
+const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { ensureSchema } = require('./db');
 const { attachUser } = require('./session');
@@ -8,6 +9,18 @@ const authRoutes = require('./routes/auth');
 const scoreRoutes = require('./routes/scores');
 
 const app = express();
+
+// Only needed when the frontend is hosted separately from this API (e.g. the
+// static build on GitHub Pages calling the Vercel deployment) — same-origin
+// requests (Vercel-hosted frontend, local dev via the Vite proxy) don't hit
+// this at all. Comma-separated list, e.g. "https://<user>.github.io".
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+if (allowedOrigins.length > 0) {
+  app.use(cors({ origin: allowedOrigins, credentials: true }));
+}
 
 app.use(express.json());
 app.use(cookieParser());

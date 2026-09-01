@@ -3,8 +3,11 @@
   import react from '@vitejs/plugin-react-swc';
   import path from 'path';
 
-  export default defineConfig({
+  export default defineConfig(({ mode }) => ({
     plugins: [react()],
+    // GitHub Pages serves this project from /<repo-name>/, not /, so asset URLs
+    // need that prefix; every other build target (Vercel, local dev) stays at '/'.
+    base: mode === 'gh-pages' ? '/claude_code_treasure_game/' : '/',
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -63,4 +66,4 @@
         },
       },
     },
-  });
+  }));

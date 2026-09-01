@@ -12,8 +12,13 @@ export interface ScoreRecord {
   created_at: string;
 }
 
+// Same-origin '/api' works on Vercel and in local dev (proxied by Vite). A
+// statically-hosted build (e.g. GitHub Pages) has no backend of its own, so
+// it needs an absolute URL to reach the API deployed elsewhere.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
